@@ -105,7 +105,12 @@ func (c *Client) Emit(event string, payload any) error {
 }
 
 func (c *Client) reconnectWatcher() {
-	<-c.Conn.Closed()
+	// 同时监听 stop 与当前连接关闭，防止 stop 已关闭仍阻塞在连接关闭等待
+	select {
+	case <-c.stop:
+		return
+	case <-c.Conn.Closed():
+	}
 	backoff := c.opts.ReconnectBackoff
 	if backoff <= 0 {
 		backoff = time.Second
