@@ -39,7 +39,7 @@ func main() {
 	go func() {
 		for {
 			server.Broadcast("command.sync", map[string]string{"task": "refresh"})
-			time.Sleep(10 * time.Second)
+			time.Sleep(3 * time.Second)
 		}
 	}()
 

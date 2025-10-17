@@ -1,6 +1,7 @@
 package controlhub
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"sync"
@@ -105,37 +106,36 @@ func (c *Client) Emit(event string, payload any) error {
 }
 
 func (c *Client) reconnectWatcher() {
+	fmt.Println("reconnectWatcher")
 	// 同时监听 stop 与当前连接关闭，防止 stop 已关闭仍阻塞在连接关闭等待
 	select {
 	case <-c.stop:
 		return
 	case <-c.Conn.Closed():
 	}
-	backoff := c.opts.ReconnectBackoff
-	if backoff <= 0 {
-		backoff = time.Second
-	}
-	for attempt := 1; ; attempt++ {
+	for {
 		select {
 		case <-c.stop:
 			return
 		default:
 		}
-
+		fmt.Println("尝试重连")
 		header := http.Header{}
 		header.Set("X-Client-Secret", c.secret)
 		header.Set("X-Client-ID", c.id)
 		ws, _, err := websocket.DefaultDialer.Dial(c.url, header)
 		if err != nil {
-			time.Sleep(backoff)
-			backoff *= 2
-			if max := c.opts.ReconnectMaxBackoff; max > 0 && backoff > max {
-				backoff = max
+			// 固定 1s 间隔无限重试，支持随时通过 stop 退出
+			select {
+			case <-c.stop:
+				return
+			case <-time.After(time.Second):
 			}
 			continue
 		}
 
-		newConn := NewConn(uuid.NewString(), ws)
+		// 使用稳定的客户端 ID
+		newConn := NewConn(c.id, ws)
 		if c.opts.HeartbeatEnabled && c.opts.HeartbeatInterval > 0 {
 			newConn.StartHeartbeat(c.opts.HeartbeatInterval)
 			_ = newConn.ws.SetReadDeadline(time.Now().Add(c.opts.HeartbeatInterval * 3))

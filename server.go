@@ -154,6 +154,43 @@ func (s *Server) Broadcast(event string, payload any) {
 	}
 }
 
+// HasClient 判断指定 client 是否在线
+func (s *Server) HasClient(clientID string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	_, ok := s.conns[clientID]
+	return ok
+}
+
+// WaitForClient 等待客户端上线，直到 ctx 超时/取消
+func (s *Server) WaitForClient(ctx context.Context, clientID string) (*Conn, error) {
+	if clientID == "" {
+		return nil, fmt.Errorf("clientID is empty")
+	}
+	// 快速路径
+	s.mu.RLock()
+	c := s.conns[clientID]
+	s.mu.RUnlock()
+	if c != nil {
+		return c, nil
+	}
+	ticker := time.NewTicker(250 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-ticker.C:
+			s.mu.RLock()
+			c = s.conns[clientID]
+			s.mu.RUnlock()
+			if c != nil {
+				return c, nil
+			}
+		}
+	}
+}
+
 func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	if s.auth == nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
