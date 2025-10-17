@@ -18,7 +18,7 @@ func main() {
 	opts.ReconnectBackoff = time.Second
 	opts.ReconnectMaxBackoff = 10 * time.Second
 
-	client, err := controlhub.ConnectWithOptions("ws://localhost:8080/ws", "", "my-secret", &opts)
+	client, err := controlhub.ConnectWithOptions("ws://localhost:8080/ws", "111111", "my-secret", &opts)
 	if err != nil {
 		panic(err)
 	}

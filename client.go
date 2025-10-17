@@ -125,6 +125,7 @@ func (c *Client) reconnectWatcher() {
 		header.Set("X-Client-ID", c.id)
 		ws, _, err := websocket.DefaultDialer.Dial(c.url, header)
 		if err != nil {
+			fmt.Printf("尝试重连失败 url=%s, err=%v, id=%s, secret=%s", c.url, err, c.id, c.secret)
 			// 固定 1s 间隔无限重试，支持随时通过 stop 退出
 			select {
 			case <-c.stop:
